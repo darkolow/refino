@@ -1,3 +1,4 @@
+import React from 'react';
 import { cities, resourceTypes, type ResourceId, type CityId, type ResourcePrice } from '@/data/albionData';
 import { ArrowUp, ArrowDown, Clock, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';

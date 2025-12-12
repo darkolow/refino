@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { ResourceSelector } from '@/components/ResourceSelector';
 import { PriceTable } from '@/components/PriceTable';
 import { ProfitCalculator } from '@/components/ProfitCalculator';

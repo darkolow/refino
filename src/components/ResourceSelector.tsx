@@ -1,3 +1,4 @@
+import React from 'react';
 import { resourceTypes, tiers, type ResourceId, type TierId } from '@/data/albionData';
 
 interface ResourceSelectorProps {
