@@ -1,18 +1,24 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { ResourceSelector } from '@/components/ResourceSelector';
 import { PriceTable } from '@/components/PriceTable';
 import { ProfitCalculator } from '@/components/ProfitCalculator';
-import { generateMockPrices, type ResourceId, type TierId } from '@/data/albionData';
-import { RefreshCw, Scroll } from 'lucide-react';
+import { ServerSelector } from '@/components/ServerSelector';
+import { usePrices } from '@/hooks/usePrices';
+import { type ResourceId, type TierId, type ServerId } from '@/data/albionData';
+import { RefreshCw, Scroll, Clock, Database } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const Index = () => {
-  const [selectedResource, setSelectedResource] = useState<ResourceId>('ore');
-  const [selectedTier, setSelectedTier] = useState<TierId>('t4');
-  const [prices, setPrices] = useState(() => generateMockPrices());
+  const [selectedResource, setSelectedResource] = useState<ResourceId>('ORE');
+  const [selectedTier, setSelectedTier] = useState<TierId>('T4');
+  const [selectedServer, setSelectedServer] = useState<ServerId>('west');
 
-  const refreshPrices = () => {
-    setPrices(generateMockPrices());
-  };
+  const { prices, isLoading, error, lastUpdated, refetch } = usePrices(
+    selectedResource,
+    selectedTier,
+    selectedServer
+  );
 
   return (
     <div className="min-h-screen p-4 md:p-8">
@@ -28,19 +34,40 @@ const Index = () => {
           <p className="text-muted-foreground max-w-xl mx-auto">
             Calculadora de recursos para Albion Online. Compare preços entre cidades e encontre as melhores rotas de comércio.
           </p>
+          
+          {/* API Status */}
+          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Database className="w-3 h-3" />
+              <span>Albion Data Project API</span>
+            </div>
+            {lastUpdated && (
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                <span>Atualizado: {format(lastUpdated, "HH:mm:ss", { locale: ptBR })}</span>
+              </div>
+            )}
+          </div>
         </header>
 
         {/* Resource Selector Card */}
         <section className="card-gradient rounded-xl border border-border p-6 shadow-card animate-slide-up">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <h2 className="font-display text-xl text-foreground">Selecionar Recurso</h2>
-            <button
-              onClick={refreshPrices}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-secondary/50 text-muted-foreground hover:text-foreground hover:border-primary/50 transition-all"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span className="text-sm">Atualizar Preços</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <ServerSelector 
+                selectedServer={selectedServer}
+                onServerChange={setSelectedServer}
+              />
+              <button
+                onClick={refetch}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-secondary/50 text-muted-foreground hover:text-foreground hover:border-primary/50 transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <span className="text-sm">Atualizar</span>
+              </button>
+            </div>
           </div>
           <ResourceSelector
             selectedResource={selectedResource}
@@ -59,8 +86,9 @@ const Index = () => {
             <h2 className="font-display text-xl text-foreground mb-4">Preços por Cidade</h2>
             <PriceTable
               selectedResource={selectedResource}
-              selectedTier={selectedTier}
               prices={prices}
+              isLoading={isLoading}
+              error={error}
             />
           </section>
 
@@ -72,15 +100,16 @@ const Index = () => {
             <h2 className="font-display text-xl text-foreground mb-4">Calculadora de Lucro</h2>
             <ProfitCalculator
               selectedResource={selectedResource}
-              selectedTier={selectedTier}
               prices={prices}
+              isLoading={isLoading}
             />
           </section>
         </div>
 
         {/* Footer */}
-        <footer className="text-center text-sm text-muted-foreground pt-8 border-t border-border">
-          <p>Os preços exibidos são simulados. Para dados reais, conecte à API do Albion Data Project.</p>
+        <footer className="text-center text-sm text-muted-foreground pt-8 border-t border-border space-y-2">
+          <p>Dados fornecidos pelo <a href="https://www.albion-online-data.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Albion Data Project</a></p>
+          <p className="text-xs">Os preços são coletados por jogadores usando o cliente de dados. Instale o cliente para contribuir!</p>
         </footer>
       </div>
     </div>
