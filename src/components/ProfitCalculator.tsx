@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { cities, resourceTypes, type ResourceId, type CityId, type ResourcePrice } from '@/data/albionData';
 import { TrendingUp, ArrowRight, Coins, AlertCircle } from 'lucide-react';
 

@@ -1,3 +1,4 @@
+import React from 'react';
 import { servers, type ServerId } from '@/data/albionData';
 import { Globe } from 'lucide-react';
 
