@@ -1,8 +1,6 @@
 import React from 'react';
 import { cities, resourceTypes, type ResourceId, type CityId, type ResourcePrice } from '@/data/albionData';
-import { ArrowUp, ArrowDown, Clock, AlertCircle } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { ArrowUp, ArrowDown, AlertCircle } from 'lucide-react';
 
 interface PriceTableProps {
   selectedResource: ResourceId;
@@ -43,35 +41,29 @@ export const PriceTable = ({ selectedResource, prices, isLoading, error }: Price
 
   // Filter out cities with no data
   const citiesWithData = cities.filter(city => 
-    prices[city.id]?.raw > 0 || prices[city.id]?.refined > 0
+    prices[city.id]?.raw > 0 || prices[city.id]?.refined > 0 ||
+    prices[city.id]?.rawBuy > 0 || prices[city.id]?.refinedBuy > 0
   );
 
-  // Find best buy (lowest non-zero) and best sell (highest)
-  const rawPrices = citiesWithData
-    .map(city => ({ city: city.id, price: prices[city.id].raw }))
-    .filter(p => p.price > 0);
-  const refinedPrices = citiesWithData
-    .map(city => ({ city: city.id, price: prices[city.id].refined }))
-    .filter(p => p.price > 0);
+  // Find best prices for raw
+  const rawSellPrices = cities.map(c => ({ city: c.id, price: prices[c.id]?.raw || 0 })).filter(p => p.price > 0);
+  const rawBuyPrices = cities.map(c => ({ city: c.id, price: prices[c.id]?.rawBuy || 0 })).filter(p => p.price > 0);
+  
+  // For selling: you want highest buy order (someone buying from you)
+  const bestSellRaw = rawBuyPrices.length > 0 ? rawBuyPrices.reduce((a, b) => a.price > b.price ? a : b) : null;
+  // For buying: you want lowest sell order (cheapest to buy)
+  const bestBuyRaw = rawSellPrices.length > 0 ? rawSellPrices.reduce((a, b) => a.price < b.price ? a : b) : null;
 
-  const bestBuyRaw = rawPrices.length > 0 ? rawPrices.reduce((a, b) => a.price < b.price ? a : b) : null;
-  const bestSellRaw = rawPrices.length > 0 ? rawPrices.reduce((a, b) => a.price > b.price ? a : b) : null;
-  const bestBuyRefined = refinedPrices.length > 0 ? refinedPrices.reduce((a, b) => a.price < b.price ? a : b) : null;
-  const bestSellRefined = refinedPrices.length > 0 ? refinedPrices.reduce((a, b) => a.price > b.price ? a : b) : null;
+  // Find best prices for refined
+  const refinedSellPrices = cities.map(c => ({ city: c.id, price: prices[c.id]?.refined || 0 })).filter(p => p.price > 0);
+  const refinedBuyPrices = cities.map(c => ({ city: c.id, price: prices[c.id]?.refinedBuy || 0 })).filter(p => p.price > 0);
+  
+  const bestSellRefined = refinedBuyPrices.length > 0 ? refinedBuyPrices.reduce((a, b) => a.price > b.price ? a : b) : null;
+  const bestBuyRefined = refinedSellPrices.length > 0 ? refinedSellPrices.reduce((a, b) => a.price < b.price ? a : b) : null;
 
   const formatPrice = (price: number) => {
     if (price === 0) return '—';
     return price.toLocaleString('pt-BR');
-  };
-
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return null;
-    try {
-      const date = new Date(dateStr);
-      return formatDistanceToNow(date, { addSuffix: true, locale: ptBR });
-    } catch {
-      return null;
-    }
   };
 
   const getCityColor = (cityId: CityId) => {
@@ -82,29 +74,42 @@ export const PriceTable = ({ selectedResource, prices, isLoading, error }: Price
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 font-display text-foreground">Cidade</th>
-              <th className="text-right py-3 px-4 font-display text-foreground">
-                {resource.name} <span className="text-muted-foreground text-xs">(Bruto)</span>
+              <th className="text-left py-2 px-2 font-display text-foreground">Cidade</th>
+              <th className="text-center py-2 px-1 font-display text-foreground" colSpan={2}>
+                <div className="flex flex-col">
+                  <span>{resource.name}</span>
+                  <span className="text-muted-foreground text-xs font-normal">(Bruto)</span>
+                </div>
               </th>
-              <th className="text-right py-3 px-4 font-display text-foreground">
-                {resource.refined} <span className="text-muted-foreground text-xs">(Refinado)</span>
+              <th className="text-center py-2 px-1 font-display text-foreground" colSpan={2}>
+                <div className="flex flex-col">
+                  <span>{resource.refined}</span>
+                  <span className="text-muted-foreground text-xs font-normal">(Refinado)</span>
+                </div>
               </th>
+            </tr>
+            <tr className="border-b border-border/50 text-xs text-muted-foreground">
+              <th></th>
+              <th className="py-1 px-1 font-normal">Venda</th>
+              <th className="py-1 px-1 font-normal">Compra</th>
+              <th className="py-1 px-1 font-normal">Venda</th>
+              <th className="py-1 px-1 font-normal">Compra</th>
             </tr>
           </thead>
           <tbody>
             {cities.map((city, index) => {
-              const rawPrice = prices[city.id]?.raw || 0;
-              const refinedPrice = prices[city.id]?.refined || 0;
-              const rawDate = prices[city.id]?.rawDate;
-              const refinedDate = prices[city.id]?.refinedDate;
+              const rawSell = prices[city.id]?.raw || 0;
+              const rawBuy = prices[city.id]?.rawBuy || 0;
+              const refinedSell = prices[city.id]?.refined || 0;
+              const refinedBuy = prices[city.id]?.refinedBuy || 0;
               
               const isBestBuyRaw = bestBuyRaw?.city === city.id;
-              const isBestSellRaw = bestSellRaw?.city === city.id && bestSellRaw?.city !== bestBuyRaw?.city;
+              const isBestSellRaw = bestSellRaw?.city === city.id;
               const isBestBuyRefined = bestBuyRefined?.city === city.id;
-              const isBestSellRefined = bestSellRefined?.city === city.id && bestSellRefined?.city !== bestBuyRefined?.city;
+              const isBestSellRefined = bestSellRefined?.city === city.id;
 
               return (
                 <tr
@@ -112,62 +117,60 @@ export const PriceTable = ({ selectedResource, prices, isLoading, error }: Price
                   className="border-b border-border/50 hover:bg-secondary/30 transition-colors"
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <td className="py-3 px-4">
+                  <td className="py-2 px-2">
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-3 h-3 rounded-full"
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                         style={{ backgroundColor: getCityColor(city.id) }}
                       />
-                      <span className="font-medium">{city.name}</span>
+                      <span className="font-medium text-xs">{city.name}</span>
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-right">
-                    <div className="flex flex-col items-end gap-1">
-                      <div className="flex items-center justify-end gap-2">
-                        <span className={`font-mono ${isBestBuyRaw ? 'text-success font-bold' : isBestSellRaw ? 'text-destructive' : rawPrice === 0 ? 'text-muted-foreground' : ''}`}>
-                          {formatPrice(rawPrice)}
-                        </span>
-                        {isBestBuyRaw && rawPrice > 0 && (
-                          <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded flex items-center gap-1">
-                            <ArrowDown className="w-3 h-3" /> Comprar
-                          </span>
-                        )}
-                        {isBestSellRaw && rawPrice > 0 && (
-                          <span className="text-xs bg-destructive/20 text-destructive px-2 py-0.5 rounded flex items-center gap-1">
-                            <ArrowUp className="w-3 h-3" /> Vender
-                          </span>
-                        )}
-                      </div>
-                      {rawDate && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {formatDate(rawDate)}
-                        </span>
+                  
+                  {/* Raw Sell (Sell Orders - where you BUY from) */}
+                  <td className="py-2 px-1 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <span className={`font-mono text-xs ${isBestBuyRaw ? 'text-success font-bold' : rawSell === 0 ? 'text-muted-foreground' : ''}`}>
+                        {formatPrice(rawSell)}
+                      </span>
+                      {isBestBuyRaw && rawSell > 0 && (
+                        <ArrowDown className="w-3 h-3 text-success" />
                       )}
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-right">
-                    <div className="flex flex-col items-end gap-1">
-                      <div className="flex items-center justify-end gap-2">
-                        <span className={`font-mono ${isBestBuyRefined ? 'text-success font-bold' : isBestSellRefined ? 'text-destructive' : refinedPrice === 0 ? 'text-muted-foreground' : ''}`}>
-                          {formatPrice(refinedPrice)}
-                        </span>
-                        {isBestBuyRefined && refinedPrice > 0 && (
-                          <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded flex items-center gap-1">
-                            <ArrowDown className="w-3 h-3" /> Comprar
-                          </span>
-                        )}
-                        {isBestSellRefined && refinedPrice > 0 && (
-                          <span className="text-xs bg-destructive/20 text-destructive px-2 py-0.5 rounded flex items-center gap-1">
-                            <ArrowUp className="w-3 h-3" /> Vender
-                          </span>
-                        )}
-                      </div>
-                      {refinedDate && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {formatDate(refinedDate)}
-                        </span>
+                  
+                  {/* Raw Buy (Buy Orders - where you SELL to) */}
+                  <td className="py-2 px-1 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <span className={`font-mono text-xs ${isBestSellRaw ? 'text-primary font-bold' : rawBuy === 0 ? 'text-muted-foreground' : ''}`}>
+                        {formatPrice(rawBuy)}
+                      </span>
+                      {isBestSellRaw && rawBuy > 0 && (
+                        <ArrowUp className="w-3 h-3 text-primary" />
+                      )}
+                    </div>
+                  </td>
+                  
+                  {/* Refined Sell */}
+                  <td className="py-2 px-1 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <span className={`font-mono text-xs ${isBestBuyRefined ? 'text-success font-bold' : refinedSell === 0 ? 'text-muted-foreground' : ''}`}>
+                        {formatPrice(refinedSell)}
+                      </span>
+                      {isBestBuyRefined && refinedSell > 0 && (
+                        <ArrowDown className="w-3 h-3 text-success" />
+                      )}
+                    </div>
+                  </td>
+                  
+                  {/* Refined Buy */}
+                  <td className="py-2 px-1 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <span className={`font-mono text-xs ${isBestSellRefined ? 'text-primary font-bold' : refinedBuy === 0 ? 'text-muted-foreground' : ''}`}>
+                        {formatPrice(refinedBuy)}
+                      </span>
+                      {isBestSellRefined && refinedBuy > 0 && (
+                        <ArrowUp className="w-3 h-3 text-primary" />
                       )}
                     </div>
                   </td>
@@ -176,6 +179,17 @@ export const PriceTable = ({ selectedResource, prices, isLoading, error }: Price
             })}
           </tbody>
         </table>
+      </div>
+
+      <div className="text-xs text-muted-foreground space-y-1">
+        <div className="flex items-center gap-2">
+          <ArrowDown className="w-3 h-3 text-success" />
+          <span>Melhor preço para comprar (menor Sell Order)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <ArrowUp className="w-3 h-3 text-primary" />
+          <span>Melhor preço para vender (maior Buy Order)</span>
+        </div>
       </div>
 
       {citiesWithData.length === 0 && (

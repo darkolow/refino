@@ -42,7 +42,7 @@ export const usePrices = (
       // Set fallback empty prices
       const emptyPrices = {} as Record<CityId, ResourcePrice>;
       cities.forEach(city => {
-        emptyPrices[city.id] = { raw: 0, refined: 0 };
+        emptyPrices[city.id] = { raw: 0, rawBuy: 0, refined: 0, refinedBuy: 0 };
       });
       setPrices(emptyPrices);
     } finally {

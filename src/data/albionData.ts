@@ -65,6 +65,8 @@ export const resourceTypes = [
 export type ResourceId = typeof resourceTypes[number]['id'];
 
 export const tiers = [
+  { id: 'T2', name: 'Tier 2', level: 2 },
+  { id: 'T3', name: 'Tier 3', level: 3 },
   { id: 'T4', name: 'Tier 4', level: 4 },
   { id: 'T5', name: 'Tier 5', level: 5 },
   { id: 'T6', name: 'Tier 6', level: 6 },
@@ -100,7 +102,9 @@ export interface AlbionPriceData {
 // Parsed price data for our app
 export interface ResourcePrice {
   raw: number;
+  rawBuy: number;
   refined: number;
+  refinedBuy: number;
   rawDate?: string;
   refinedDate?: string;
 }
@@ -139,7 +143,7 @@ export const fetchPrices = async (
     const prices: Record<CityId, ResourcePrice> = {} as Record<CityId, ResourcePrice>;
     
     cities.forEach(city => {
-      prices[city.id] = { raw: 0, refined: 0 };
+      prices[city.id] = { raw: 0, rawBuy: 0, refined: 0, refinedBuy: 0 };
     });
     
     // Filter to quality 1 only (normal quality) and process
@@ -149,18 +153,20 @@ export const fetchPrices = async (
         const cityId = item.city as CityId;
         if (!prices[cityId]) return;
         
-        // Prefer sell_price_min, fallback to buy_price_max
-        const price = item.sell_price_min > 0 ? item.sell_price_min : item.buy_price_max;
+        const sellPrice = item.sell_price_min > 0 ? item.sell_price_min : 0;
+        const buyPrice = item.buy_price_max > 0 ? item.buy_price_max : 0;
         const date = item.sell_price_min > 0 ? item.sell_price_min_date : item.buy_price_max_date;
         
         // Only set if date is valid (not year 0001)
         const isValidDate = date && !date.startsWith('0001');
         
-        if (item.item_id === rawId && price > 0) {
-          prices[cityId].raw = price;
+        if (item.item_id === rawId) {
+          prices[cityId].raw = sellPrice;
+          prices[cityId].rawBuy = buyPrice;
           prices[cityId].rawDate = isValidDate ? date : undefined;
-        } else if (item.item_id === refinedId && price > 0) {
-          prices[cityId].refined = price;
+        } else if (item.item_id === refinedId) {
+          prices[cityId].refined = sellPrice;
+          prices[cityId].refinedBuy = buyPrice;
           prices[cityId].refinedDate = isValidDate ? date : undefined;
         }
       });
@@ -190,7 +196,7 @@ export const fetchAllPrices = async (
       const key = `${resourceId}-${tier.id}`;
       allPrices[key] = {} as Record<CityId, ResourcePrice>;
       cities.forEach(city => {
-        allPrices[key][city.id] = { raw: 0, refined: 0 };
+        allPrices[key][city.id] = { raw: 0, rawBuy: 0, refined: 0, refinedBuy: 0 };
       });
     }
   });
