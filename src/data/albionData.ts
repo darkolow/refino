@@ -142,21 +142,28 @@ export const fetchPrices = async (
       prices[city.id] = { raw: 0, refined: 0 };
     });
     
-    data.forEach(item => {
-      const cityId = item.city as CityId;
-      if (!prices[cityId]) return;
-      
-      const price = item.sell_price_min || item.buy_price_max || 0;
-      const date = item.sell_price_min_date || item.buy_price_max_date;
-      
-      if (item.item_id === rawId) {
-        prices[cityId].raw = price;
-        prices[cityId].rawDate = date;
-      } else if (item.item_id === refinedId) {
-        prices[cityId].refined = price;
-        prices[cityId].refinedDate = date;
-      }
-    });
+    // Filter to quality 1 only (normal quality) and process
+    data
+      .filter(item => item.quality === 1)
+      .forEach(item => {
+        const cityId = item.city as CityId;
+        if (!prices[cityId]) return;
+        
+        // Prefer sell_price_min, fallback to buy_price_max
+        const price = item.sell_price_min > 0 ? item.sell_price_min : item.buy_price_max;
+        const date = item.sell_price_min > 0 ? item.sell_price_min_date : item.buy_price_max_date;
+        
+        // Only set if date is valid (not year 0001)
+        const isValidDate = date && !date.startsWith('0001');
+        
+        if (item.item_id === rawId && price > 0) {
+          prices[cityId].raw = price;
+          prices[cityId].rawDate = isValidDate ? date : undefined;
+        } else if (item.item_id === refinedId && price > 0) {
+          prices[cityId].refined = price;
+          prices[cityId].refinedDate = isValidDate ? date : undefined;
+        }
+      });
     
     return prices;
   } catch (error) {
