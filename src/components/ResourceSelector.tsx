@@ -40,20 +40,20 @@ export const ResourceSelector = ({
 
       <div>
         <h3 className="font-display text-lg text-foreground mb-3">Tier</h3>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {tiers.map((tier) => (
             <button
               key={tier.id}
               onClick={() => onTierChange(tier.id)}
               className={`
-                flex-1 py-2 px-4 rounded-lg border font-display text-sm transition-all duration-200
+                py-2 px-4 rounded-lg border font-display text-sm transition-all duration-200
                 ${selectedTier === tier.id
                   ? 'border-primary bg-primary/10 text-primary glow-gold'
                   : 'border-border bg-secondary/50 text-muted-foreground hover:border-primary/50 hover:text-foreground'
                 }
               `}
             >
-              {tier.name}
+              T{tier.level}
             </button>
           ))}
         </div>
