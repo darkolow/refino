@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { ResourceSelector } from '@/components/ResourceSelector';
 import { PriceTable } from '@/components/PriceTable';
 import { ProfitCalculator } from '@/components/ProfitCalculator';
+import { RefiningCalculator } from '@/components/RefiningCalculator';
 import { ServerSelector } from '@/components/ServerSelector';
 import { usePrices } from '@/hooks/usePrices';
+import { useAllPrices } from '@/hooks/useAllPrices';
 import { type ResourceId, type TierId, type ServerId } from '@/data/albionData';
 import { RefreshCw, Scroll, Clock, Database } from 'lucide-react';
 import { format } from 'date-fns';
@@ -19,6 +21,15 @@ const Index = () => {
     selectedTier,
     selectedServer
   );
+
+  const { allPrices, isLoading: isLoadingAll, refetch: refetchAll } = useAllPrices(
+    selectedResource,
+    selectedServer
+  );
+
+  const handleRefresh = async () => {
+    await Promise.all([refetch(), refetchAll()]);
+  };
 
   return (
     <div className="min-h-screen p-4 md:p-8">
@@ -60,11 +71,11 @@ const Index = () => {
                 onServerChange={setSelectedServer}
               />
               <button
-                onClick={refetch}
-                disabled={isLoading}
+                onClick={handleRefresh}
+                disabled={isLoading || isLoadingAll}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-secondary/50 text-muted-foreground hover:text-foreground hover:border-primary/50 transition-all disabled:opacity-50"
               >
-                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${isLoading || isLoadingAll ? 'animate-spin' : ''}`} />
                 <span className="text-sm">Atualizar</span>
               </button>
             </div>
@@ -105,6 +116,18 @@ const Index = () => {
             />
           </section>
         </div>
+
+        {/* Refining Calculator Card */}
+        <section 
+          className="card-gradient rounded-xl border border-border p-6 shadow-card animate-slide-up"
+          style={{ animationDelay: '300ms' }}
+        >
+          <RefiningCalculator
+            selectedResource={selectedResource}
+            allPrices={allPrices}
+            isLoading={isLoadingAll}
+          />
+        </section>
 
         {/* Footer */}
         <footer className="text-center text-sm text-muted-foreground pt-8 border-t border-border space-y-2">
