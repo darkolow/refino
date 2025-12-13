@@ -48,15 +48,18 @@ const CITY_REFINING_BONUS: Record<string, ResourceId> = {
 
 export const RefiningCalculator = ({ selectedResource, allPrices, isLoading }: RefiningCalculatorProps) => {
   const [selectedTier, setSelectedTier] = useState<TierId>('T4');
-  const [city, setCity] = useState<CityId>('Thetford');
+  const [refiningCity, setRefiningCity] = useState<CityId>('Thetford');
+  const [rawBuyCity, setRawBuyCity] = useState<CityId>('Thetford');
+  const [prevRefinedBuyCity, setPrevRefinedBuyCity] = useState<CityId>('Thetford');
+  const [sellCity, setSellCity] = useState<CityId>('Thetford');
   const [quantity, setQuantity] = useState(100);
   const [useFocus, setUseFocus] = useState(true);
   const [stationFee, setStationFee] = useState(15); // percentage
 
   const resource = resourceTypes.find(r => r.id === selectedResource)!;
 
-  // Check if city has bonus for this resource
-  const hasCityBonus = CITY_REFINING_BONUS[city] === selectedResource;
+  // Check if refining city has bonus for this resource
+  const hasCityBonus = CITY_REFINING_BONUS[refiningCity] === selectedResource;
 
   // Calculate return rate
   const returnRate = useMemo(() => {
@@ -77,20 +80,20 @@ export const RefiningCalculator = ({ selectedResource, allPrices, isLoading }: R
     // Get prices for current tier
     const currentKey = `${selectedResource}-${currentTier.id}`;
     const currentPrices = allPrices[currentKey];
-    if (!currentPrices || !currentPrices[city]) return null;
+    if (!currentPrices) return null;
 
-    // Get raw price (what we need to buy)
-    const rawPrice = currentPrices[city].raw || 0;
-    // Get refined price (what we'll sell)
-    const refinedSellPrice = currentPrices[city].refined || 0;
+    // Get raw price from selected raw buy city
+    const rawPrice = currentPrices[rawBuyCity]?.raw || 0;
+    // Get refined price from selected sell city
+    const refinedSellPrice = currentPrices[sellCity]?.refined || 0;
 
-    // Get previous tier refined price if needed
+    // Get previous tier refined price from selected prev refined buy city
     let previousRefinedPrice = 0;
     if (recipe.previousRefinedNeeded > 0 && previousTier) {
       const prevKey = `${selectedResource}-${previousTier.id}`;
       const prevPrices = allPrices[prevKey];
-      if (prevPrices && prevPrices[city]) {
-        previousRefinedPrice = prevPrices[city].refined || 0;
+      if (prevPrices && prevPrices[prevRefinedBuyCity]) {
+        previousRefinedPrice = prevPrices[prevRefinedBuyCity].refined || 0;
       }
     }
 
@@ -154,8 +157,12 @@ export const RefiningCalculator = ({ selectedResource, allPrices, isLoading }: R
       totalCost,
       totalRevenue,
       totalProfit,
+      rawBuyCity,
+      prevRefinedBuyCity,
+      sellCity,
+      refiningCity,
     };
-  }, [selectedResource, selectedTier, city, quantity, stationFee, returnRate, allPrices]);
+  }, [selectedResource, selectedTier, rawBuyCity, prevRefinedBuyCity, sellCity, refiningCity, quantity, stationFee, returnRate, allPrices]);
 
   if (isLoading) {
     return (
@@ -198,25 +205,80 @@ export const RefiningCalculator = ({ selectedResource, allPrices, isLoading }: R
           </div>
         </div>
 
-        {/* City Selection */}
-        <div>
-          <label className="text-sm text-muted-foreground mb-1 block">
-            Cidade de Refino
-            {hasCityBonus && (
-              <span className="ml-2 text-success text-xs">✓ Bônus para {resource.name}</span>
-            )}
-          </label>
-          <select
-            value={city}
-            onChange={(e) => setCity(e.target.value as CityId)}
-            className="w-full px-4 py-2 rounded-lg border border-border bg-secondary/50 text-foreground focus:outline-none focus:border-primary transition-colors"
-          >
-            {cities.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.name} {getCityBonusResource(c.id) === selectedResource ? '⭐' : ''}
-              </option>
-            ))}
-          </select>
+        {/* City Selection Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Raw Material Buy City */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">
+              Comprar {selectedTier} {resource.name}
+            </label>
+            <select
+              value={rawBuyCity}
+              onChange={(e) => setRawBuyCity(e.target.value as CityId)}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-secondary/50 text-foreground focus:outline-none focus:border-primary transition-colors text-sm"
+            >
+              {cities.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Previous Refined Buy City - only show if needed */}
+          {tiers.findIndex(t => t.id === selectedTier) > 0 && (
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">
+                Comprar {tiers[tiers.findIndex(t => t.id === selectedTier) - 1]?.id} {resource.refined}
+              </label>
+              <select
+                value={prevRefinedBuyCity}
+                onChange={(e) => setPrevRefinedBuyCity(e.target.value as CityId)}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-secondary/50 text-foreground focus:outline-none focus:border-primary transition-colors text-sm"
+              >
+                {cities.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          {/* Refining City */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">
+              Cidade de Refino
+              {hasCityBonus && (
+                <span className="ml-2 text-success text-xs">⭐</span>
+              )}
+            </label>
+            <select
+              value={refiningCity}
+              onChange={(e) => setRefiningCity(e.target.value as CityId)}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-secondary/50 text-foreground focus:outline-none focus:border-primary transition-colors text-sm"
+            >
+              {cities.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.name} {getCityBonusResource(c.id) === selectedResource ? '⭐' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Sell City */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">
+              Vender {selectedTier} {resource.refined}
+            </label>
+            <select
+              value={sellCity}
+              onChange={(e) => setSellCity(e.target.value as CityId)}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-secondary/50 text-foreground focus:outline-none focus:border-primary transition-colors text-sm"
+            >
+              {cities.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Quantity & Settings Row */}
@@ -335,11 +397,12 @@ export const RefiningCalculator = ({ selectedResource, allPrices, isLoading }: R
 
           {/* Price Details */}
           <div className="text-xs text-muted-foreground space-y-1">
-            <div>Preço {selectedTier} {resource.name}: {formatPrice(calculation.rawPrice)}</div>
+            <div>{selectedTier} {resource.name} ({calculation.rawBuyCity}): {formatPrice(calculation.rawPrice)}</div>
             {calculation.previousTier && (
-              <div>Preço {calculation.previousTier.id} {resource.refined}: {formatPrice(calculation.previousRefinedPrice)}</div>
+              <div>{calculation.previousTier.id} {resource.refined} ({calculation.prevRefinedBuyCity}): {formatPrice(calculation.previousRefinedPrice)}</div>
             )}
-            <div>Preço {selectedTier} {resource.refined}: {formatPrice(calculation.refinedSellPrice)}</div>
+            <div>{selectedTier} {resource.refined} ({calculation.sellCity}): {formatPrice(calculation.refinedSellPrice)}</div>
+            <div className="text-primary">Refino em: {calculation.refiningCity} {hasCityBonus ? '⭐' : ''}</div>
           </div>
         </div>
       ) : (
